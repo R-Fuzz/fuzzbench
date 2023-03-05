@@ -247,7 +247,7 @@ def build():  # pylint: disable=too-many-branches,too-many-statements
     if is_benchmark('bloaty'):
         update_protobuf()
 
-    if is_benchmark('libpcap_fuzz_both'):
+    if is_benchmark('libpcap'):
         os.environ['CXXFLAGS'] = os.environ['CXXFLAGS'] + ' -libverbs'
     if is_benchmark('libgit'):
         os.environ['CXXFLAGS'] = os.environ['CXXFLAGS'] + ' -lpcre'
