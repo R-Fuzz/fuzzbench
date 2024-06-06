@@ -14,9 +14,8 @@
 
 FROM gcr.io/fuzzbench/base-image
 
-RUN apt update && apt install -y lsb-release wget software-properties-common gnupg
-RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 12
-RUN apt install -y unzip git gdb joe libz3-dev libgoogle-perftools-dev \
+RUN apt update && apt install -y unzip git gdb joe \
+    libz3-dev libgoogle-perftools-dev bboost-container-dev \
     libc++-12-dev libc++abi-12-dev libunwind-12 python-is-python3
 
 ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/out"
@@ -26,6 +25,9 @@ ENV PATH="$PATH:/out"
 ENV AFL_SKIP_CPUFREQ=1
 #ENV AFL_NO_UI=1
 #ENV AFL_NO_AFFINITY=1
-ENV AFL_SKIP_CRASHES=1
-ENV AFL_TESTCACHE_SIZE=2
+ENV AFL_SKIP_CPUFREQ=1
+#ENV AFL_SKIP_CRASHES=1
 ENV AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+ENV AFL_TESTCACHE_SIZE=2
+#ENV SYMSAN_USE_JIGSAW=1
+#ENV SYMSAN_USE_NESTED=1

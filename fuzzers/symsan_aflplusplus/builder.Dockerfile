@@ -23,53 +23,41 @@ RUN apt-get update &&  \
     autoconf \
     automake \
     cmake \
-    ninja-build \
     git \
     flex \
     bison \
     libglib2.0-dev \
     libpixman-1-dev \
+    cargo \
     libgtk-3-dev \
-    libnl-genl-3-dev \
-    # for llvm script
-    lsb-release \
-    wget \
-    software-properties-common \
-    gnupg
-
-# add llvm repository
-RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 12
-
-# install symsan dependencies
-RUN apt install -y \
+    # for symsan
     llvm-12 \
     clang-12 \
     libc++-12-dev \
     libc++abi-12-dev \
-    libunwind-12 \
+    libunwind-12-dev \
     python-is-python3 \
     zlib1g-dev \
     libz3-dev \
-    libgoogle-perftools-dev
-
+    libgoogle-perftools-dev \
+    libboost-container-dev
 
 # Download afl++.
 RUN git clone https://github.com/AFLplusplus/AFLplusplus.git /afl && \
     cd /afl && \
-    git checkout 407c || \
+    git checkout 420c || \
     true
 
 # Build afl++
 run cd /afl && \
     unset CFLAGS CXXFLAGS && \
-    export CC=clang-12 LLVM_CONFIG=llvm-config-12 AFL_NO_X86=1 && \
-    PYTHON_INCLUDE=/ make NO_PYTHON=1 NO_NYX=1 source-only -j && make install && \
+    export CC=clang AFL_NO_X86=1 && \
+    PYTHON_INCLUDE=/ make PERFORMANCE=1 LLVM_CONFIG=llvm-config-12 NO_NYX=1 source-only -j && \
+    make install && \
     cp utils/aflpp_driver/libAFLDriver.a /
 
 # Download symsan
-RUN git clone https://github.com/R-Fuzz/symsan /symsan && \
-    cd /symsan && \
-    git checkout aflpp
+RUN git clone https://github.com/R-Fuzz/symsan /symsan || true
 
 # Build symsan
 RUN cd /symsan && \
@@ -79,5 +67,8 @@ RUN cd /symsan && \
     CC=clang-12 CXX=clang++-12 CXXFLAGS="-DDEBUG=0" cmake -DAFLPP_PATH=/afl ../ && \
     make -j && make install
 
+ENV KO_CC=clang-12
+ENV KO_CXX=clang++-12
+
 COPY libfuzz-harness-proxy.c /
-RUN KO_DONT_OPTIMIZE=1 KO_CC=clang-12 KO_USE_FASTGEN=1 /usr/local/bin/ko-clang -c /libfuzz-harness-proxy.c -o /libfuzzer-harness.o
+RUN KO_DONT_OPTIMIZE=1 KO_USE_FASTGEN=1 /usr/local/bin/ko-clang -c /libfuzz-harness-proxy.c -o /libfuzzer-harness.o

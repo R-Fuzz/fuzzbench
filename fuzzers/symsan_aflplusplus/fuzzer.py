@@ -13,9 +13,10 @@
 # limitations under the License.
 """Integration code fo using SymSan as AFLplusplus custom mutator."""
 
-import shutil
 import os
+import shutil
 import subprocess
+
 from fuzzers.afl import fuzzer as afl_fuzzer
 from fuzzers.aflplusplus import fuzzer as aflplusplus_fuzzer
 
@@ -64,9 +65,9 @@ def fix_flags(new_env):
     new_env['CXX'] = '/usr/local/bin/ko-clang++'
     new_env['KO_CC'] = 'clang-12'
     new_env['KO_CXX'] = 'clang++-12'
-    if not is_benchmark('libjpeg'):
-        new_env['CXXFLAGS'] = ''
-        new_env['CFLAGS'] = ''
+    new_env['CFLAGS'] = ' '.join(utils.NO_SANITIZER_COMPAT_CFLAGS)
+    cxxflags = [utils.LIBCPLUSPLUS_FLAG] + utils.NO_SANITIZER_COMPAT_CFLAGS
+    os.environ['CXXFLAGS'] = ' '.join(cxxflags)
     #if is_benchmark('libpcap'):
     #    new_env['CXXFLAGS'] = '-libverbs'
     if is_benchmark('libgit'):
@@ -75,13 +76,14 @@ def fix_flags(new_env):
         new_env['CXXFLAGS'] = '-llzma'
     if is_benchmark('wireshark'):
         new_env['CXXFLAGS'] = '-llzma -licuuc'
-
     if is_benchmark('curl_curl_fuzzer_http'):
         new_env['SANITIZER'] = 'memory'
     if is_benchmark('libxslt_xpath'):
         new_env['SANITIZER'] = 'memory'
     if is_benchmark('openssl_x509'):
         new_env['CFLAGS'] = '-fsanitize=memory'
+    if is_benchmark('openh264'):
+        new_env['CXXFLAGS'] = '-fsanitize=memory'
 
 
 def fix_abilist():
@@ -98,54 +100,12 @@ def fix_abilist():
                   encoding='utf-8') as abilist:
             abilist.write('fun:lzma*=uninstrumented\n')
             abilist.write('fun:lzma*=discard\n')
-    if is_benchmark('sqlite3'):
-        with open('/usr/local/lib/symsan/dfsan_abilist.txt',
-                  'a',
-                  encoding='utf-8') as abilist:
-            abilist.write('fun:fcntl64*=uninstrumented\n')
-            abilist.write('fun:fcntl64*=discard\n')
-    if is_benchmark('systemd'):
-        with open('/usr/local/lib/symsan/dfsan_abilist.txt',
-                  'a',
-                  encoding='utf-8') as abilist:
-            abilist.write('fun:fcntl64*=uninstrumented\n')
-            abilist.write('fun:fcntl64*=discard\n')
     if is_benchmark('libxml'):
         with open('/usr/local/lib/symsan/dfsan_abilist.txt',
                   'a',
                   encoding='utf-8') as abilist:
             abilist.write('fun:lzma_*=uninstrumented\n')
             abilist.write('fun:lzma_*=discard\n')
-    if is_benchmark('libxslt'):
-        with open('/usr/local/lib/symsan/dfsan_abilist.txt',
-                  'a',
-                  encoding='utf-8') as abilist:
-            abilist.write('fun:fcntl64*=uninstrumented\n')
-            abilist.write('fun:fcntl64*=discard\n')
-    if is_benchmark('openh264'):
-        with open('/usr/local/lib/symsan/dfsan_abilist.txt',
-                  'a',
-                  encoding='utf-8') as abilist:
-            abilist.write('fun:*sse*=uninstrumented\n')
-            abilist.write('fun:*sse*=discard\n')
-            abilist.write('fun:*_avx2=uninstrumented\n')
-            abilist.write('fun:*_avx2=discard\n')
-            abilist.write('fun:*_mmx=uninstrumented\n')
-            abilist.write('fun:*_mmx=discard\n')
-            abilist.write('fun:Wels*=uninstrumented\n')
-            abilist.write('fun:Wels*=discard\n')
-    if is_benchmark('libjpeg'):
-        with open('/usr/local/lib/symsan/dfsan_abilist.txt',
-                  'a',
-                  encoding='utf-8') as abilist:
-            abilist.write('fun:*simd_*=uninstrumented\n')
-            abilist.write('fun:*simd_*=discard\n')
-    if is_benchmark('bloaty'):
-        with open('/usr/local/lib/symsan/dfsan_abilist.txt',
-                  'a',
-                  encoding='utf-8') as abilist:
-            abilist.write('fun:*google8protobuf*=uninstrumented\n')
-            abilist.write('fun:*google8protobuf*=uninstrumented\n')
     if is_benchmark('libarchive'):
         with open('/usr/local/lib/symsan/dfsan_abilist.txt',
                   'a',
@@ -204,10 +164,6 @@ def build_symsan(build_directory, src, work):
             build_benchmark_symsan(new_env, 'freetype2')
         elif is_benchmark('proj'):
             build_benchmark_symsan(new_env, 'proj')
-        elif is_benchmark('bloaty'):
-            shutil.copy('/src/fuzzers/symsan/CMakeLists_bloaty.txt',
-                        '/src/bloaty/CMakeLists.txt')
-            utils.build_benchmark(env=new_env)
         else:
             utils.build_benchmark(env=new_env)
 
@@ -231,8 +187,7 @@ def build():  # pylint: disable=too-many-branches,too-many-statements
         os.environ['CXXFLAGS'] = os.environ['CXXFLAGS'] + ' -llzma -licuuc'
 
     with utils.restore_directory(src), utils.restore_directory(work):
-        if is_benchmark('njs') or is_benchmark('muparser') or is_benchmark(
-                'bloaty'):
+        if is_benchmark('njs') or is_benchmark('muparser'):
             os.remove('/usr/local/lib/libc++.a')
             os.remove('/usr/local/lib/libc++abi.a')
         build_symsan(build_directory, src, work)
